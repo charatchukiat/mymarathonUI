@@ -92,7 +92,17 @@
 
   <div id="statusBar">
     <span id="lastUpdated">—</span>
-    <button onclick="loadData()" style="padding:4px 10px;font-size:12px;">↻ รีเฟรช</button>
+    <span style="display:flex;gap:6px;">
+      <button onclick="toggleDebug()" style="padding:4px 10px;font-size:12px;">🐞 Debug info</button>
+      <button onclick="loadData()" style="padding:4px 10px;font-size:12px;">↻ รีเฟรช</button>
+    </span>
+  </div>
+
+  <div id="debugPanel" style="display:none;background:var(--surface-1);border-radius:var(--radius);padding:0.9rem 1rem;margin-bottom:1rem;font-size:12px;">
+    <div style="font-weight:600;margin-bottom:8px;">Debug information</div>
+    <div id="debugSummary" style="margin-bottom:10px;line-height:1.6;"></div>
+    <div style="font-weight:600;margin-bottom:6px;">Raw CSV (first 3000 characters):</div>
+    <pre id="debugRaw" style="white-space:pre-wrap;word-break:break-all;background:var(--surface-0);border-radius:8px;padding:8px;max-height:300px;overflow:auto;font-size:11px;line-height:1.5;"></pre>
   </div>
 
   <div id="errorBox"></div>
@@ -187,6 +197,33 @@ const CSV_URL_FALLBACK = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSws1N
 
 /* Auto-refresh interval (ms) — 0 = ปิด auto refresh, ผู้ใช้กด refresh เอง */
 const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 นาที
+
+let DEBUG_RAW_TEXT = '';
+let DEBUG_USED_URL = '';
+let DEBUG_INFO = {};
+
+function toggleDebug(){
+  const panel = document.getElementById('debugPanel');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if(isHidden) renderDebugPanel();
+}
+
+function renderDebugPanel(){
+  const summary = document.getElementById('debugSummary');
+  const raw = document.getElementById('debugRaw');
+  const lines = [];
+  lines.push('URL ที่ fetch สำเร็จ: ' + (DEBUG_USED_URL || '(ยังไม่มี)'));
+  lines.push('ความยาวข้อความที่ได้: ' + DEBUG_RAW_TEXT.length + ' ตัวอักษร');
+  lines.push('');
+  lines.push('ผลการค้นหา header แต่ละส่วน (index -1 = หาไม่เจอ):');
+  Object.keys(DEBUG_INFO).forEach(k => {
+    const found = DEBUG_INFO[k] > -1 ? '✅ พบที่แถว ' + DEBUG_INFO[k] : '❌ ไม่พบ';
+    lines.push('&nbsp;&nbsp;• ' + k + ': ' + found);
+  });
+  summary.innerHTML = lines.join('<br>');
+  raw.textContent = DEBUG_RAW_TEXT.slice(0, 3000) || '(ยังไม่มีข้อมูล — กด รีเฟรช ก่อน)';
+}
 
 function showError(msg){
   const box = document.getElementById('errorBox');
@@ -317,16 +354,21 @@ async function loadData(){
 
   let text = null;
   let lastErr = null;
+  let usedUrl = '';
 
   for(const url of [CSV_URL_PRIMARY, CSV_URL_FALLBACK]){
     try{
       text = await tryFetch(url);
+      usedUrl = url;
       lastErr = null;
       break;
     } catch(err){
       lastErr = err;
     }
   }
+
+  DEBUG_RAW_TEXT = text || '';
+  DEBUG_USED_URL = usedUrl;
 
   if(text === null){
     showError(
@@ -341,18 +383,26 @@ async function loadData(){
       const rows = parseCSV(text);
       render(rows);
       document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'});
+      if(DEBUG_INFO['KPI header'] === -1){
+        document.getElementById('debugPanel').style.display = 'block';
+        showError('หาโครงสร้างข้อมูลหลัก (KPI header) ไม่เจอ — เปิด Debug info ด้านล่างเพื่อดูข้อมูลดิบที่ fetch มาได้จริง แล้วส่ง screenshot มาให้ตรวจสอบ');
+      }
     } catch(err){
       showError('โหลดข้อมูลสำเร็จแต่แปลงข้อมูลไม่ได้: ' + err.message);
     }
   }
+  renderDebugPanel();
 
   overlay.style.display = 'none';
   app.style.display = 'block';
 }
 
 function render(rows){
+  DEBUG_INFO = {};
+
   // --- KPI block: header row "KPI | Value | Coach interpretation | | Status | Value | Countdown | Days"
   const kpiHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'KPI');
+  DEBUG_INFO['KPI header'] = kpiHeaderIdx;
   const kpi = {};
   if(kpiHeaderIdx > -1){
     for(let i = kpiHeaderIdx+1; i < rows.length; i++){
@@ -395,12 +445,14 @@ function render(rows){
 
   // --- Coach summary block
   const coachIdx = findRowIndex(rows, r => r[0] && r[0].includes('Coach Summary'));
+  DEBUG_INFO['Coach Summary header'] = coachIdx;
   let coachNote = '–';
   if(coachIdx > -1 && rows[coachIdx+1]) coachNote = rows[coachIdx+1][0].replace('[merged]','').trim();
   document.getElementById('coachNote').textContent = coachNote;
 
   // --- Weekly training plan block: header "Date | Day | Session | Suggested target | Purpose | Status | Safety note | Coach rule"
   const planHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'Date' && r[1] && r[1].trim() === 'Day');
+  DEBUG_INFO['Weekly plan header (Date/Day)'] = planHeaderIdx;
   const planRows = [];
   if(planHeaderIdx > -1){
     for(let i = planHeaderIdx+1; i < rows.length; i++){
@@ -430,6 +482,7 @@ function render(rows){
 
   // --- Weekly review snapshot: header "Week Start | Week Label | Planned Low km | ... "
   const weeklyHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'Week Start');
+  DEBUG_INFO['Weekly Review header (Week Start)'] = weeklyHeaderIdx;
   const weeklyRows = [];
   if(weeklyHeaderIdx > -1){
     for(let i = weeklyHeaderIdx+1; i < rows.length; i++){
@@ -458,6 +511,7 @@ function render(rows){
 
   // --- Monthly review snapshot: header "Month | Monthly Mileage km | ..."
   const monthlyHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'Month');
+  DEBUG_INFO['Monthly Review header (Month)'] = monthlyHeaderIdx;
   const monthlyRows = [];
   if(monthlyHeaderIdx > -1){
     for(let i = monthlyHeaderIdx+1; i < rows.length; i++){

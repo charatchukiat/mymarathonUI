@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Marathon">
+<title>Marathon Progress Tracker</title>
+<style>
+  :root{
+    --surface-0:#f7f6f2; --surface-1:#ffffff; --surface-2:#ffffff;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+    --border:rgba(11,11,11,0.10); --border-strong:rgba(11,11,11,0.18);
+    --bg-accent:#e6f1fb; --text-accent:#0c447c; --border-accent:#378add;
+    --bg-success:#eaf3de; --text-success:#27500a;
+    --bg-warning:#faeeda; --text-warning:#633806;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --surface-0:#141413; --surface-1:#1e1e1c; --surface-2:#232320;
+      --text-primary:#f5f4f0; --text-secondary:#c3c2b7; --text-muted:#8a8880;
+      --border:rgba(255,255,255,0.10); --border-strong:rgba(255,255,255,0.18);
+      --bg-accent:#0c2c47; --text-accent:#85b7eb;
+      --bg-success:#173404; --text-success:#97c459;
+      --bg-warning:#412402; --text-warning:#fac775;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--surface-0); color:var(--text-primary);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:1rem; padding-bottom:2.5rem;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+  .card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:14px;padding:1.1rem 1.2rem;}
+  .tile{background:var(--surface-1);border-radius:12px;padding:0.85rem 0.95rem;}
+  .lbl{font-size:12px;color:var(--text-muted);margin:0 0 5px;}
+  .num{font-size:22px;font-weight:600;color:var(--text-primary);line-height:1.05;}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 11px;border-radius:999px;}
+  .delta{font-size:11px;padding:2px 6px;border-radius:6px;display:inline-flex;align-items:center;gap:2px;}
+  .day{border:0.5px solid var(--border);border-radius:12px;padding:0.7rem 0.4rem;text-align:center;background:var(--surface-2);}
+  .track{height:9px;border-radius:999px;background:var(--surface-0);border:0.5px solid var(--border);overflow:hidden;}
+  .sec{font-size:13px;font-weight:600;color:var(--text-secondary);margin:1.8rem 0 .8rem;display:flex;align-items:center;gap:7px;}
+  .sec::after{content:"";flex:1;height:0.5px;background:var(--border);}
+  .hero{font-size:52px;line-height:.9;color:var(--text-primary);font-weight:600;}
+  .grid{display:grid;gap:12px;}
+  .grid-2{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+  .grid-4{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+  .grid-days{grid-template-columns:repeat(auto-fit,minmax(88px,1fr));}
+  button{
+    font:inherit; font-size:13px; background:transparent; color:var(--text-primary);
+    border:0.5px solid var(--border-strong); border-radius:var(--radius);
+    padding:8px 14px; cursor:pointer;
+  }
+  button:active{transform:scale(0.98);}
+  #statusBar{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--text-muted); margin-bottom:0.8rem; gap:8px;
+  }
+  #loadingOverlay{
+    position:fixed; inset:0; background:var(--surface-0); display:flex;
+    align-items:center; justify-content:center; flex-direction:column; gap:12px; z-index:99;
+  }
+  .spinner{
+    width:28px; height:28px; border-radius:50%;
+    border:3px solid var(--border); border-top-color:var(--text-accent);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #errorBox{
+    display:none; background:var(--bg-warning); color:var(--text-warning);
+    border-radius:var(--radius); padding:0.9rem 1rem; font-size:13px; margin-bottom:1rem;
+  }
+  .bars{display:flex;align-items:flex-end;gap:5px;height:150px;position:relative;}
+  .bars .gridline{position:absolute;left:0;right:0;border-top:0.5px solid var(--border);}
+  .bar-col{flex:1;display:flex;justify-content:center;align-items:flex-end;height:100%;}
+  .bar{width:64%;max-width:24px;border-radius:4px 4px 0 0;}
+  .xaxis{display:flex;gap:5px;margin-top:6px;}
+  .xaxis span{flex:1;text-align:center;font-size:10px;color:var(--text-muted);}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text-secondary);">กำลังโหลดข้อมูลล่าสุด...</div>
+</div>
+
+<div class="wrap" id="app" style="display:none;">
+
+  <div id="statusBar">
+    <span id="lastUpdated">—</span>
+    <button onclick="loadData()" style="padding:4px 10px;font-size:12px;">↻ รีเฟรช</button>
+  </div>
+
+  <div id="errorBox"></div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:38px;height:38px;border-radius:11px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;flex:0 0 38px;font-size:20px;">🏃</div>
+      <div>
+        <div style="font-size:20px;font-weight:600;color:var(--text-primary);line-height:1.1;">Marathon progress tracker</div>
+        <div style="font-size:13px;color:var(--text-secondary);">Sunshine Coast → Perth · sub-4</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:1.2rem;">
+    <div class="card" style="border-left:3px solid #378ADD;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:var(--text-secondary);">Sunshine Coast · A-race</span>
+        <span class="pill" style="background:var(--bg-accent);color:var(--text-accent);">goal <span id="aRaceGoal">–</span></span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:9px;margin-top:9px;">
+        <span class="hero" id="daysToA">–</span><span style="font-size:14px;color:var(--text-secondary);">days<br>to go</span>
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid #888780;">
+      <div style="font-size:13px;color:var(--text-secondary);">Perth Marathon · B-race</div>
+      <div style="display:flex;align-items:baseline;gap:9px;margin-top:9px;">
+        <span class="hero" id="daysToB">–</span><span style="font-size:14px;color:var(--text-secondary);">days<br>to go</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusPills" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem;"></div>
+
+  <div class="sec">📊 Readiness</div>
+  <div class="card">
+    <div class="grid grid-2">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;">
+          <span style="font-size:13px;color:var(--text-secondary);">Marathon readiness</span>
+          <span style="font-size:16px;font-weight:600;" id="readinessLabel">–</span>
+        </div>
+        <div class="track"><div id="readinessBar" style="height:100%;background:#378ADD;width:0%;"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;">
+          <span style="font-size:13px;color:var(--text-secondary);">Sub-4 confidence</span>
+          <span style="font-size:16px;font-weight:600;" id="confidenceLabel">–</span>
+        </div>
+        <div class="track"><div id="confidenceBar" style="height:100%;background:#1D9E75;width:0%;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-4" style="margin-top:12px;" id="kpiTiles"></div>
+
+  <div class="card" style="margin-top:12px;border-left:3px solid #1D9E75;">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">💬 Coach note</div>
+    <div style="font-size:15px;color:var(--text-primary);line-height:1.5;" id="coachNote">–</div>
+  </div>
+
+  <div class="sec">📅 This week's plan</div>
+  <div class="grid grid-days" id="weekPlan"></div>
+
+  <div class="sec">📈 Weekly mileage</div>
+  <div class="card" id="weeklyChart"></div>
+
+  <div class="sec">📉 Readiness & sub-4 confidence trend</div>
+  <div class="card" id="trendChart"></div>
+
+  <div class="sec">🗓 Monthly mileage</div>
+  <div class="card" id="monthlyChart"></div>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   SPREADSHEET_ID = ID ที่อยู่ใน URL ตอนแก้ไข Sheet
+   (https://docs.google.com/spreadsheets/d/ID/edit...)
+   GID = เลขแท็บ (อยู่ท้าย URL หลัง #gid=)
+   Sheet ต้องตั้งค่า Share เป็น "Anyone with the link" อย่างน้อย
+   (หรือ Publish to web ก็ได้ ใช้ร่วมกันได้)
+   ============================================================ */
+const SPREADSHEET_ID = "1xCeTOsuoPO1Fcn4xZAvY_i_jpY2VK_RME9TzBXBOOmY";
+const GID = "1002001";
+
+// gviz/tq endpoint — รองรับ CORS ดีกว่า pub?output=csv สำหรับ fetch() จาก JS
+const CSV_URL_PRIMARY = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
+// pub?output=csv endpoint — ใช้เป็นตัวสำรองถ้าตัวหลักพลาด
+const CSV_URL_FALLBACK = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSws1NQkIVYGTKp3JzTuwhvYiVVF3_GiVghtsujb4ksqM4JxJBdTe1jIa_ofE0VWIFMb-_iQaQhQUhI/pub?gid=1002001&single=true&output=csv";
+
+/* Auto-refresh interval (ms) — 0 = ปิด auto refresh, ผู้ใช้กด refresh เอง */
+const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 นาที
+
+function showError(msg){
+  const box = document.getElementById('errorBox');
+  box.style.display = 'block';
+  box.innerHTML = '⚠️ ' + msg;
+}
+function hideError(){
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+function parseCSV(text){
+  // Simple CSV parser handling quoted fields with commas
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i], next = text[i+1];
+    if(inQuotes){
+      if(c === '"' && next === '"'){ field += '"'; i++; }
+      else if(c === '"'){ inQuotes = false; }
+      else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field=''; }
+      else if(c === '\n' || c === '\r'){
+        if(c === '\r' && next === '\n') i++;
+        row.push(field); field='';
+        rows.push(row); row=[];
+      } else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell.trim() !== ''));
+}
+
+function findRowIndex(rows, matchFn, startFrom=0){
+  for(let i=startFrom;i<rows.length;i++){
+    if(matchFn(rows[i])) return i;
+  }
+  return -1;
+}
+
+function daysBetween(dateStr){
+  const target = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  target.setHours(0,0,0,0);
+  return Math.round((target - today) / 86400000);
+}
+
+function pill(label, tone){
+  const tones = {
+    success: ['var(--bg-success)','var(--text-success)'],
+    warning: ['var(--bg-warning)','var(--text-warning)'],
+    neutral: ['var(--surface-1)','var(--text-secondary)']
+  };
+  const [bg,fg] = tones[tone] || tones.neutral;
+  return `<span class="pill" style="background:${bg};color:${fg};">${label}</span>`;
+}
+
+function statusTone(v){
+  const s = String(v).toUpperCase();
+  if(s.includes('GREEN')) return 'success';
+  if(s.includes('YELLOW') || s.includes('AMBER')) return 'warning';
+  if(s.includes('RED')) return 'warning';
+  return 'neutral';
+}
+
+function buildBarChart(container, labels, values, opts={}){
+  const max = opts.max || Math.max(...values) * 1.15;
+  const colorFn = opts.colorFn || (() => '#378ADD');
+  let barsHtml = `<div class="bars">`;
+  barsHtml += `<div class="gridline" style="top:0;"></div><div class="gridline" style="top:50%;"></div><div class="gridline" style="bottom:0;top:auto;"></div>`;
+  values.forEach((v,i) => {
+    const h = Math.max(2, (v / max) * 150);
+    barsHtml += `<div class="bar-col"><div class="bar" title="${labels[i]}: ${v}" style="height:${h}px;background:${colorFn(v,i)};"></div></div>`;
+  });
+  barsHtml += `</div><div class="xaxis">`;
+  labels.forEach(l => barsHtml += `<span>${l}</span>`);
+  barsHtml += `</div>`;
+  container.innerHTML = barsHtml;
+}
+
+function buildLineChart(container, labels, seriesA, seriesB, opts={}){
+  const w = 620, h = 170, padL = 30, padB = 20;
+  const allVals = seriesA.concat(seriesB);
+  const min = opts.min ?? Math.floor(Math.min(...allVals)/10)*10 - 5;
+  const max = opts.max ?? Math.ceil(Math.max(...allVals)/10)*10 + 5;
+  const n = labels.length;
+  const x = i => padL + (i/(n-1)) * (w - padL - 10);
+  const y = v => (h - padB) - ((v - min)/(max - min)) * (h - padB - 15);
+
+  const ptsA = seriesA.map((v,i) => `${x(i)},${y(v)}`).join(' ');
+  const ptsB = seriesB.map((v,i) => `${x(i)},${y(v)}`).join(' ');
+
+  let svg = `<div style="display:flex;gap:14px;font-size:11px;color:var(--text-secondary);margin-bottom:8px;">
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:3px;background:#2a78d6;border-radius:2px;"></span>${opts.labelA||'Series A'}</span>
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:0;border-top:3px dashed #1baf7a;"></span>${opts.labelB||'Series B'}</span>
+  </div>`;
+  svg += `<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block;">`;
+  [0,0.5,1].forEach(f => {
+    const yy = padB + f*(h-padB-15);
+    svg += `<line x1="${padL}" y1="${yy}" x2="${w-10}" y2="${yy}" style="stroke:var(--border);"/>`;
+  });
+  svg += `<polyline fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${ptsA}"/>`;
+  svg += `<polyline fill="none" stroke="#1baf7a" stroke-width="2.5" stroke-dasharray="5 4" stroke-linejoin="round" stroke-linecap="round" points="${ptsB}"/>`;
+  svg += `<circle cx="${x(n-1)}" cy="${y(seriesA[n-1])}" r="3.5" fill="#2a78d6"/>`;
+  svg += `<circle cx="${x(n-1)}" cy="${y(seriesB[n-1])}" r="3.5" fill="#1baf7a"/>`;
+  svg += `<text x="${padL}" y="${h}" style="fill:var(--text-muted);font-size:10px;">${labels[0]}</text>`;
+  svg += `<text x="${w-10}" y="${h}" text-anchor="end" style="fill:var(--text-muted);font-size:10px;">${labels[n-1]}</text>`;
+  svg += `</svg>`;
+  container.innerHTML = svg;
+}
+
+async function tryFetch(url){
+  const bust = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+  const res = await fetch(bust, { cache: 'no-store' });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  // gviz/tq บางครั้งห่อผลลัพธ์เป็น JS callback เมื่อ tqx ไม่ตรง — เช็คว่าเป็น CSV จริง
+  if(text.trim().startsWith('<')) throw new Error('ได้ HTML แทน CSV (สิทธิ์การเข้าถึง Sheet อาจไม่เปิดพอ)');
+  return text;
+}
+
+async function loadData(){
+  hideError();
+  const overlay = document.getElementById('loadingOverlay');
+  const app = document.getElementById('app');
+
+  let text = null;
+  let lastErr = null;
+
+  for(const url of [CSV_URL_PRIMARY, CSV_URL_FALLBACK]){
+    try{
+      text = await tryFetch(url);
+      lastErr = null;
+      break;
+    } catch(err){
+      lastErr = err;
+    }
+  }
+
+  if(text === null){
+    showError(
+      'โหลดข้อมูลไม่สำเร็จ: ' + (lastErr ? lastErr.message : 'unknown error') +
+      '<br><br>สาเหตุที่พบบ่อย:<br>' +
+      '• ถ้าเปิดไฟล์นี้แบบดับเบิลคลิก (file://) บาง browser บล็อก cross-origin fetch — ลอง host ไฟล์นี้บนเว็บก่อน (เช่น netlify.com/drop) แล้วเปิดผ่าน URL นั้นแทน<br>' +
+      '• เช็คว่า Sheet ตั้งค่า Share เป็น "Anyone with the link — Viewer" แล้ว (ไม่ใช่แค่ Publish to web)<br>' +
+      '• เช็คว่า SPREADSHEET_ID และ GID ในไฟล์ตรงกับ Sheet จริง'
+    );
+  } else {
+    try{
+      const rows = parseCSV(text);
+      render(rows);
+      document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'});
+    } catch(err){
+      showError('โหลดข้อมูลสำเร็จแต่แปลงข้อมูลไม่ได้: ' + err.message);
+    }
+  }
+
+  overlay.style.display = 'none';
+  app.style.display = 'block';
+}
+
+function render(rows){
+  // --- KPI block: header row "KPI | Value | Coach interpretation | | Status | Value | Countdown | Days"
+  const kpiHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'KPI');
+  const kpi = {};
+  if(kpiHeaderIdx > -1){
+    for(let i = kpiHeaderIdx+1; i < rows.length; i++){
+      const r = rows[i];
+      if(!r[0] || r[0].trim() === '') break;
+      kpi[r[0].trim()] = r[1] ? r[1].trim() : '';
+      if(r[4]) kpi[r[4].trim()] = r[5] ? r[5].trim() : '';
+      if(r[6]) kpi[r[6].trim()] = r[7] ? r[7].trim() : '';
+    }
+  }
+
+  document.getElementById('daysToA').textContent = kpi['Sunshine Coast Marathon'] ?? '–';
+  document.getElementById('daysToB').textContent = kpi['Perth Marathon'] ?? '–';
+  document.getElementById('aRaceGoal').textContent = kpi['A-race goal'] ?? '–';
+
+  const readiness = parseFloat(kpi['Marathon readiness']) || 0;
+  const confidence = parseFloat(kpi['Sub-4 confidence']) || 0;
+  document.getElementById('readinessLabel').innerHTML = `${readiness}<span style="font-size:12px;color:var(--text-muted);">/100</span>`;
+  document.getElementById('confidenceLabel').innerHTML = `${confidence}<span style="font-size:12px;color:var(--text-muted);">%</span>`;
+  document.getElementById('readinessBar').style.width = Math.min(100,readiness) + '%';
+  document.getElementById('confidenceBar').style.width = Math.min(100,confidence) + '%';
+
+  const pillsHtml = [
+    kpi['Latest injury status'] ? pill('Injury ' + kpi['Latest injury status'], statusTone(kpi['Latest injury status'])) : '',
+    kpi['Latest PM2.5'] ? pill('PM2.5 ' + kpi['Latest PM2.5'], statusTone(kpi['Latest PM2.5'])) : '',
+    kpi['Latest RPE'] ? pill('RPE ' + kpi['Latest RPE'] + '/10', 'neutral') : '',
+    kpi['Latest long run km'] ? pill('Long run ' + kpi['Latest long run km'] + ' km', 'neutral') : ''
+  ].join('');
+  document.getElementById('statusPills').innerHTML = pillsHtml;
+
+  const tiles = [
+    ['This week', kpi['Current week km'], 'km'],
+    ['4-week avg', kpi['4-week avg km'], 'km'],
+    ['Longest run', kpi['Longest run km'], 'km'],
+    ['Total logged', kpi['Total backfilled km'], 'km']
+  ];
+  document.getElementById('kpiTiles').innerHTML = tiles.map(([l,v,u]) =>
+    `<div class="tile"><p class="lbl">${l}</p><div class="num">${v ?? '–'} <span style="font-size:13px;color:var(--text-muted);">${u}</span></div></div>`
+  ).join('');
+
+  // --- Coach summary block
+  const coachIdx = findRowIndex(rows, r => r[0] && r[0].includes('Coach Summary'));
+  let coachNote = '–';
+  if(coachIdx > -1 && rows[coachIdx+1]) coachNote = rows[coachIdx+1][0].replace('[merged]','').trim();
+  document.getElementById('coachNote').textContent = coachNote;
+
+  // --- Weekly training plan block: header "Date | Day | Session | Suggested target | Purpose | Status | Safety note | Coach rule"
+  const planHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'Date' && r[1] && r[1].trim() === 'Day');
+  const planRows = [];
+  if(planHeaderIdx > -1){
+    for(let i = planHeaderIdx+1; i < rows.length; i++){
+      const r = rows[i];
+      if(!r[0] || r[0].trim() === '' || r[0].includes('Dashboard rule')) break;
+      planRows.push(r);
+    }
+  }
+  const dayIcons = {'Mon':'🏃','Tue':'🛌','Wed':'⚡','Thu':'❤️','Fri':'🛌','Sat':'⛰️','Sun':'🛌'};
+  document.getElementById('weekPlan').innerHTML = planRows.map(r => {
+    const day = r[1] || '';
+    const session = r[2] || '';
+    const target = (r[3] || '').split(';')[0].slice(0,14);
+    const status = (r[5] || '').toUpperCase();
+    const isNext = status.includes('NEXT');
+    const isLong = session.toLowerCase().includes('long');
+    let style = 'border:0.5px solid var(--border);background:var(--surface-2);';
+    if(isNext) style = 'border:1.5px solid var(--border-accent);background:var(--bg-accent);';
+    else if(isLong) style = 'border:1.5px solid #5DCAA5;background:var(--bg-success);';
+    return `<div class="day" style="${style}">
+      <div style="font-size:11px;color:var(--text-muted);">${day.toUpperCase()}${isNext?' · NEXT':''}</div>
+      <div style="font-size:20px;margin:4px 0;">${dayIcons[day]||'📍'}</div>
+      <div style="font-size:12px;color:var(--text-primary);">${session}</div>
+      <div style="font-size:10px;color:var(--text-muted);">${target}</div>
+    </div>`;
+  }).join('');
+
+  // --- Weekly review snapshot: header "Week Start | Week Label | Planned Low km | ... "
+  const weeklyHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'Week Start');
+  const weeklyRows = [];
+  if(weeklyHeaderIdx > -1){
+    for(let i = weeklyHeaderIdx+1; i < rows.length; i++){
+      const r = rows[i];
+      if(!r[0] || r[0].trim() === '' || isNaN(Date.parse(r[0]))) break;
+      weeklyRows.push(r);
+    }
+  }
+  weeklyRows.reverse(); // oldest first for chart
+  if(weeklyRows.length){
+    const labels = weeklyRows.map(r => {
+      const d = new Date(r[0]);
+      return d.getDate() + '/' + (d.getMonth()+1);
+    });
+    const actualKm = weeklyRows.map(r => parseFloat(r[4]) || 0);
+    const readinessSeries = weeklyRows.map(r => parseFloat(r[10]) || 0);
+    const confidenceSeries = weeklyRows.map(r => parseFloat(r[11]) || 0);
+
+    buildBarChart(document.getElementById('weeklyChart'), labels, actualKm, {
+      colorFn: (v,i) => i === actualKm.length-1 ? '#0C447C' : '#378ADD'
+    });
+    buildLineChart(document.getElementById('trendChart'), labels, readinessSeries, confidenceSeries, {
+      labelA: 'Readiness /100', labelB: 'Sub-4 confidence %', min:40, max:90
+    });
+  }
+
+  // --- Monthly review snapshot: header "Month | Monthly Mileage km | ..."
+  const monthlyHeaderIdx = findRowIndex(rows, r => r[0] && r[0].trim() === 'Month');
+  const monthlyRows = [];
+  if(monthlyHeaderIdx > -1){
+    for(let i = monthlyHeaderIdx+1; i < rows.length; i++){
+      const r = rows[i];
+      if(!r[0] || r[0].trim() === '' || !/^\d{4}-\d{2}$/.test(r[0].trim())) break;
+      monthlyRows.push(r);
+    }
+  }
+  monthlyRows.reverse();
+  if(monthlyRows.length){
+    const labels = monthlyRows.map(r => {
+      const [y,m] = r[0].split('-');
+      const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return names[parseInt(m,10)-1];
+    });
+    const km = monthlyRows.map(r => parseFloat(r[1]) || 0);
+    const maxKm = Math.max(...km);
+    buildBarChart(document.getElementById('monthlyChart'), labels, km, {
+      colorFn: (v,i) => v === maxKm ? '#0C447C' : (i === km.length-1 ? '#B5D4F4' : '#185FA5')
+    });
+  }
+}
+
+loadData();
+if(AUTO_REFRESH_MS > 0){
+  setInterval(loadData, AUTO_REFRESH_MS);
+}
+</script>
+</body>
+</html>

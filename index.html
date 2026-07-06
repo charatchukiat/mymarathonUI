@@ -33,30 +33,62 @@
   body{
     margin:0; background:var(--surface-0); color:var(--text-primary);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased; padding:1rem; padding-bottom:2.5rem;
+    -webkit-font-smoothing:antialiased; -webkit-text-size-adjust:100%;
+    padding:1.2rem; padding-bottom:3rem; line-height:1.6; font-size:16px;
   }
   .wrap{max-width:640px;margin:0 auto;}
-  .card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:14px;padding:1.1rem 1.2rem;}
-  .tile{background:var(--surface-1);border-radius:12px;padding:0.85rem 0.95rem;}
-  .lbl{font-size:12px;color:var(--text-muted);margin:0 0 5px;}
-  .num{font-size:22px;font-weight:600;color:var(--text-primary);line-height:1.05;}
-  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 11px;border-radius:999px;}
-  .delta{font-size:11px;padding:2px 6px;border-radius:6px;display:inline-flex;align-items:center;gap:2px;}
+  .card{
+    background:var(--surface-2); border:0.5px solid var(--border);
+    border-radius:16px; padding:1.3rem;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    transition:all 0.2s ease-out;
+  }
+  .card:hover{
+    border-color:var(--border-strong);
+    box-shadow:0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
+    transform:translateY(-2px);
+  }
+  @media (prefers-color-scheme: dark) {
+    .card{box-shadow:0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);}
+    .card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);}
+  }
+  .tile{
+    background:var(--surface-1); border-radius:12px; padding:1rem 1.1rem;
+    border:0.5px solid var(--border);
+  }
+  .lbl{font-size:13px;color:var(--text-muted);margin:0 0 8px;font-weight:500;letter-spacing:0.3px;}
+  .num{font-size:28px;font-weight:700;color:var(--text-primary);line-height:1.2;}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 12px;border-radius:999px;font-weight:500;}
+  .delta{font-size:12px;padding:3px 7px;border-radius:6px;display:inline-flex;align-items:center;gap:2px;}
   .day{border:0.5px solid var(--border);border-radius:12px;padding:0.7rem 0.4rem;text-align:center;background:var(--surface-2);}
-.day-list{display:flex;flex-direction:column;gap:8px;}
-.day-row{display:flex;gap:12px;align-items:flex-start;border:0.5px solid var(--border);border-radius:12px;padding:0.8rem 0.9rem;background:var(--surface-2);}
-.day-row-icon{flex:0 0 44px;text-align:center;padding-top:2px;}
-.day-row-icon .emoji{font-size:22px;line-height:1;display:block;}
-.day-row-icon .daylabel{font-size:10px;color:var(--text-muted);margin-top:3px;font-weight:600;letter-spacing:0.02em;}
-.day-row-body{flex:1;min-width:0;}
-.day-row-title{font-size:14px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.day-row-badge{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600;}
-.day-row-target{font-size:13px;color:var(--text-secondary);line-height:1.5;margin-top:4px;}
-.day-row-purpose{font-size:11px;color:var(--text-muted);margin-top:5px;display:flex;align-items:flex-start;gap:5px;}
+  .day-list{display:flex;flex-direction:column;gap:10px;}
+  .day-row{
+    display:flex; gap:14px; align-items:flex-start;
+    border:0.5px solid var(--border); border-radius:14px;
+    padding:1rem 1.1rem; background:var(--surface-2);
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);
+    transition:all 0.2s ease-out;
+  }
+  .day-row:hover{
+    border-color:var(--border-strong);
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+  .day-row-icon{flex:0 0 48px;text-align:center;padding-top:2px;}
+  .day-row-icon .emoji{font-size:24px;line-height:1;display:block;}
+  .day-row-icon .daylabel{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600;letter-spacing:0.5px;}
+  .day-row-body{flex:1;min-width:0;}
+  .day-row-title{font-size:15px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .day-row-badge{font-size:11px;padding:3px 8px;border-radius:999px;font-weight:600;}
+  .day-row-target{font-size:14px;color:var(--text-secondary);line-height:1.6;margin-top:6px;}
+  .day-row-purpose{font-size:12px;color:var(--text-muted);margin-top:6px;display:flex;align-items:flex-start;gap:5px;}
   .track{height:9px;border-radius:999px;background:var(--surface-0);border:0.5px solid var(--border);overflow:hidden;}
-  .sec{font-size:13px;font-weight:600;color:var(--text-secondary);margin:1.8rem 0 .8rem;display:flex;align-items:center;gap:7px;}
+  .sec{
+    font-size:14px;font-weight:700;color:var(--text-primary);
+    margin:2.2rem 0 1.1rem; display:flex; align-items:center; gap:8px;
+    letter-spacing:-0.3px;
+  }
   .sec::after{content:"";flex:1;height:0.5px;background:var(--border);}
-  .hero{font-size:52px;line-height:.9;color:var(--text-primary);font-weight:600;}
+  .hero{font-size:56px;line-height:1;color:var(--text-primary);font-weight:700;letter-spacing:-1.5px;}
   .grid{display:grid;gap:12px;}
   .grid-2{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
   .grid-4{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
@@ -97,16 +129,16 @@
 
 <div id="loadingOverlay">
   <div class="spinner"></div>
-  <div style="font-size:13px;color:var(--text-secondary);">กำลังโหลดข้อมูลล่าสุด...</div>
+  <div style="font-size:15px;color:var(--text-secondary);font-weight:500;margin-top:12px;">Loading latest data...</div>
 </div>
 
 <div class="wrap" id="app" style="display:none;">
 
   <div id="statusBar">
-    <span id="lastUpdated">—</span>
-    <span style="display:flex;gap:6px;">
-      <button onclick="toggleDebug()" style="padding:4px 10px;font-size:12px;">🐞 Debug info</button>
-      <button onclick="loadData()" style="padding:4px 10px;font-size:12px;">↻ รีเฟรช</button>
+    <span id="lastUpdated" style="font-size:13px;color:var(--text-muted);font-weight:500;">—</span>
+    <span style="display:flex;gap:7px;">
+      <button onclick="toggleDebug()" style="padding:6px 12px;font-size:13px;font-weight:500;">🐞 Debug</button>
+      <button onclick="loadData()" style="padding:6px 12px;font-size:13px;font-weight:500;">↻ Refresh</button>
     </span>
   </div>
 
@@ -119,61 +151,67 @@
 
   <div id="errorBox"></div>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-    <div style="display:flex;align-items:center;gap:11px;">
-      <div style="width:38px;height:38px;border-radius:11px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;flex:0 0 38px;font-size:20px;">🏃</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;gap:13px;">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;flex:0 0 44px;font-size:24px;">🏃</div>
       <div>
-        <div style="font-size:20px;font-weight:600;color:var(--text-primary);line-height:1.1;">Marathon progress tracker</div>
-        <div style="font-size:13px;color:var(--text-secondary);">Perth → Sunshine Coast · sub-4</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text-primary);line-height:1.2;">Marathon Tracker</div>
+        <div style="font-size:14px;color:var(--text-secondary);margin-top:2px;">Perth → Sunshine Coast · sub-4</div>
       </div>
     </div>
   </div>
 
-  <div class="grid grid-2" style="margin-top:1.2rem;">
-    <div class="card" style="border-left:3px solid #378ADD;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:13px;color:var(--text-secondary);">Perth Marathon · A-race</span>
-        <span class="pill" style="background:var(--bg-accent);color:var(--text-accent);">goal <span id="aRaceGoal">–</span></span>
+  <div class="grid grid-2" style="margin-top:1.6rem;gap:14px;">
+    <div class="card" style="border-left:3px solid #378ADD;border-radius:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div>
+          <div style="font-size:14px;color:var(--text-muted);font-weight:500;letter-spacing:0.3px;">PERTH MARATHON</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">A-race · goal</div>
+        </div>
+        <span class="pill" style="background:var(--bg-accent);color:var(--text-accent);" id="aRaceGoal">–</span>
       </div>
-      <div style="display:flex;align-items:baseline;gap:9px;margin-top:9px;">
-        <span class="hero" id="daysToA">–</span><span style="font-size:14px;color:var(--text-secondary);">days<br>to go</span>
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <span class="hero" id="daysToA">–</span><span style="font-size:15px;color:var(--text-secondary);font-weight:500;">days<br>to go</span>
       </div>
     </div>
-    <div class="card" style="border-left:3px solid #888780;">
-      <div style="font-size:13px;color:var(--text-secondary);">Sunshine Coast · B-race</div>
-      <div style="display:flex;align-items:baseline;gap:9px;margin-top:9px;">
-        <span class="hero" id="daysToB">–</span><span style="font-size:14px;color:var(--text-secondary);">days<br>to go</span>
+    <div class="card" style="border-left:3px solid #888780;border-radius:16px;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:14px;color:var(--text-muted);font-weight:500;letter-spacing:0.3px;">SUNSHINE COAST</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">B-race</div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <span class="hero" id="daysToB">–</span><span style="font-size:15px;color:var(--text-secondary);font-weight:500;">days<br>to go</span>
       </div>
     </div>
   </div>
 
-  <div id="statusPills" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem;"></div>
+  <div id="statusPills" style="display:flex;flex-wrap:wrap;gap:9px;margin-top:1.5rem;"></div>
 
   <div class="sec">📊 Readiness</div>
   <div class="card">
-    <div class="grid grid-2">
+    <div class="grid grid-2" style="gap:18px;">
       <div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;">
-          <span style="font-size:13px;color:var(--text-secondary);">Marathon readiness</span>
-          <span style="font-size:16px;font-weight:600;" id="readinessLabel">–</span>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px;">
+          <span style="font-size:14px;color:var(--text-secondary);font-weight:500;">Marathon readiness</span>
+          <span style="font-size:20px;font-weight:700;" id="readinessLabel">–</span>
         </div>
         <div class="track"><div id="readinessBar" style="height:100%;background:#378ADD;width:0%;"></div></div>
       </div>
       <div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;">
-          <span style="font-size:13px;color:var(--text-secondary);">Sub-4 confidence</span>
-          <span style="font-size:16px;font-weight:600;" id="confidenceLabel">–</span>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px;">
+          <span style="font-size:14px;color:var(--text-secondary);font-weight:500;">Sub-4 confidence</span>
+          <span style="font-size:20px;font-weight:700;" id="confidenceLabel">–</span>
         </div>
         <div class="track"><div id="confidenceBar" style="height:100%;background:#1D9E75;width:0%;"></div></div>
       </div>
     </div>
   </div>
 
-  <div class="grid grid-4" style="margin-top:12px;" id="kpiTiles"></div>
+  <div class="grid grid-4" style="margin-top:16px;gap:11px;" id="kpiTiles"></div>
 
-  <div class="card" style="margin-top:12px;border-left:3px solid var(--border-coach);background:var(--bg-coach);">
-    <div style="font-size:12px;color:var(--text-coach);margin-bottom:5px;font-weight:600;">💬 Coach note</div>
-    <div style="font-size:15px;color:var(--text-primary);line-height:1.5;" id="coachNote">–</div>
+  <div class="card" style="margin-top:16px;border-left:3px solid var(--border-coach);background:var(--bg-coach);border-radius:16px;">
+    <div style="font-size:12px;color:var(--text-coach);margin-bottom:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">💬 Coach note</div>
+    <div style="font-size:16px;color:var(--text-primary);line-height:1.6;font-weight:500;" id="coachNote">–</div>
   </div>
 
   <div class="sec">📅 This week's plan</div>

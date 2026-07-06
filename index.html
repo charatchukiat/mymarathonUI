@@ -53,6 +53,18 @@
 .day-row-badge{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600;}
 .day-row-target{font-size:13px;color:var(--text-secondary);line-height:1.5;margin-top:4px;}
 .day-row-purpose{font-size:11px;color:var(--text-muted);margin-top:5px;display:flex;align-items:flex-start;gap:5px;}
+.latest-session-banner{
+  background:var(--surface-1);
+  border:0.5px dashed var(--border-strong);
+  border-radius:10px;
+  padding:0.6rem 0.85rem;
+  font-size:12px;
+  color:var(--text-secondary);
+  margin-bottom:10px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
   .track{height:9px;border-radius:999px;background:var(--surface-0);border:0.5px solid var(--border);overflow:hidden;}
   .sec{font-size:13px;font-weight:600;color:var(--text-secondary);margin:1.8rem 0 .8rem;display:flex;align-items:center;gap:7px;}
   .sec::after{content:"";flex:1;height:0.5px;background:var(--border);}
@@ -178,6 +190,7 @@
   </div>
 
   <div class="sec">📅 This week's plan</div>
+  <div id="latestSessionBanner"></div>
   <div class="day-list" id="weekPlan"></div>
 
   <div class="sec">📈 Weekly mileage</div>
@@ -268,7 +281,9 @@ function parseCSV(text){
     }
   }
   if(field.length || row.length){ row.push(field); rows.push(row); }
-  return rows.filter(r => r.some(cell => cell.trim() !== ''));
+  // หมายเหตุ: ไม่กรองแถวว่างทิ้ง เพื่อให้ตำแหน่งแถว (index) ตรงกับ Sheet จริงเป๊ะ
+  // เดิมเคยกรองทิ้งซึ่งทำให้การอ้างอิงแถวถัดไป (เช่น coachIdx+2) ข้ามไปโดนแถวผิด
+  return rows;
 }
 
 function colIndexByHeaderName(headerRow, nameSubstr){
@@ -514,17 +529,16 @@ function render(rows){
   const pillsHtml = [
     kpi['Latest injury status'] ? pill('Injury ' + kpi['Latest injury status'], statusTone(kpi['Latest injury status'])) : '',
     kpi['Latest PM2.5'] ? pill('PM2.5 ' + kpi['Latest PM2.5'], statusTone(kpi['Latest PM2.5'])) : '',
-    kpi['Latest RPE'] ? pill('RPE ' + kpi['Latest RPE'] + '/10', 'neutral') : '',
-    (() => {
-      // Label มาจาก KPI 'Latest session' (เซลล์ F5) เป็นหลัก ตาม field ที่ระบุไว้บน Sheet
-      // Fallback ไปที่ Session Type จากตาราง Fueling ถ้า F5 ว่าง
-      const sessionLabel = (kpi['Latest session'] || latestSessionType || 'Latest run').trim();
-      // Km มาจากตาราง Fueling (แม่นยำที่สุด เพราะจับคู่กับ session ล่าสุดจริง) fallback ไป 'Latest long run km'
-      const sessionKm = latestSessionKm || kpi['Latest long run km'] || '';
-      return sessionKm ? pill(sessionLabel + ' ' + sessionKm + ' km', 'neutral') : '';
-    })()
+    kpi['Latest RPE'] ? pill('RPE ' + kpi['Latest RPE'] + '/10', 'neutral') : ''
   ].join('');
-  document.getElementById('statusPills').innerHTML = pillsHtml;
+
+  // Label มาจาก KPI 'Latest session' (เซลล์ F5) เป็นหลัก ตาม field ที่ระบุไว้บน Sheet
+  // Fallback ไปที่ Session Type จากตาราง Fueling ถ้า F5 ว่าง
+  const latestSessionLabel = (kpi['Latest session'] || latestSessionType || 'Latest run').trim();
+  // Km มาจากตาราง Fueling (แม่นยำที่สุด เพราะจับคู่กับ session ล่าสุดจริง) fallback ไป 'Latest long run km'
+  const latestSessionKmFinal = latestSessionKm || kpi['Latest long run km'] || '';
+  const latestSessionPill = latestSessionKmFinal ? pill(latestSessionLabel + ' ' + latestSessionKmFinal + ' km', 'neutral') : '';
+  document.getElementById('statusPills').innerHTML = pillsHtml + latestSessionPill;
 
   const tiles = [
     ['This week', kpi['Current week km'], 'km'],
@@ -536,11 +550,32 @@ function render(rows){
     `<div class="tile"><p class="lbl">${l}</p><div class="num">${v ?? '–'} <span style="font-size:13px;color:var(--text-muted);">${u}</span></div></div>`
   ).join('');
 
-  // --- Coach summary block
+  // --- Banner จางๆ เหนือ "This week's plan" บอกว่า session ล่าสุดที่วิ่งไปคืออะไร
+  if(latestSessionKmFinal){
+    let dateDisplay = kpi['Latest run date'] || '';
+    try{
+      const d = new Date(kpi['Latest run date']);
+      if(!isNaN(d)) dateDisplay = d.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'});
+    } catch(e){}
+    document.getElementById('latestSessionBanner').innerHTML =
+      `<div class="latest-session-banner">✅ <span>วิ่งล่าสุดไปแล้ว: <strong style="color:var(--text-primary);">${latestSessionLabel} ${latestSessionKmFinal} km</strong>${dateDisplay ? ' เมื่อ ' + dateDisplay : ''}</span></div>`;
+  } else {
+    document.getElementById('latestSessionBanner').innerHTML = '';
+  }
+
+  // --- Coach summary block: ดึงจากแถว 13-14 ของ Sheet (สองแถวถัดจาก header "Coach Summary" ที่แถว 12)
   const coachIdx = findRowIndex(rows, r => r[0] && r[0].includes('Coach Summary'));
   DEBUG_INFO['Coach Summary header'] = coachIdx;
-  let coachNote = '–';
-  if(coachIdx > -1 && rows[coachIdx+1]) coachNote = rows[coachIdx+1][0].replace('[merged]','').trim();
+  const coachNoteParts = [];
+  if(coachIdx > -1){
+    if(rows[coachIdx+1] && rows[coachIdx+1][0] && rows[coachIdx+1][0].trim() !== ''){
+      coachNoteParts.push(rows[coachIdx+1][0].replace('[merged]','').trim()); // แถว 13
+    }
+    if(rows[coachIdx+2] && rows[coachIdx+2][0] && rows[coachIdx+2][0].trim() !== ''){
+      coachNoteParts.push(rows[coachIdx+2][0].replace('[merged]','').trim()); // แถว 14
+    }
+  }
+  const coachNote = coachNoteParts.length ? coachNoteParts.join(' ') : '–';
   document.getElementById('coachNote').textContent = coachNote;
 
   // --- Weekly training plan block: header "Date | Day | Session | Suggested target | Purpose | Status | Safety note | Coach rule"
